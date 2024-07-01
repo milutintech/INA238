@@ -27,6 +27,27 @@ class INA238:
     # Default values
     DEFAULT_BUS = 10
 
+    # Constants for configuration
+    RANGE_16V = 0x0000
+    RANGE_32V = 0x0010
+
+    GAIN_1_40MV = 0x0000
+    GAIN_2_80MV = 0x0001
+    GAIN_4_160MV = 0x0002
+    GAIN_8_320MV = 0x0003
+
+    ADC_9BIT = 0x0000
+    ADC_10BIT = 0x0001
+    ADC_11BIT = 0x0002
+    ADC_12BIT = 0x0003
+    ADC_2SAMP = 0x0009
+    ADC_4SAMP = 0x000A
+    ADC_8SAMP = 0x000B
+    ADC_16SAMP = 0x000C
+    ADC_32SAMP = 0x000D
+    ADC_64SAMP = 0x000E
+    ADC_128SAMP = 0x000F
+
     def __init__(self, bus_num=DEFAULT_BUS, addr=0x40, max_voltage=32, shunt_resistance=0.1, max_current=3.2):
         self.bus = smbus.SMBus(bus_num)
         self.addr = addr
@@ -35,7 +56,6 @@ class INA238:
         self.max_current = max_current
         self.reset()
         self.configure()
-        self.calibrate()
 
     def write_register(self, reg, value):
         # Swap byte order for correct writing
@@ -47,23 +67,25 @@ class INA238:
         # Swap byte order for correct reading
         return ((value & 0xFF) << 8) | ((value >> 8) & 0xFF)
 
-    def configure(self):
+    def configure(self, voltage_range=RANGE_32V, gain=GAIN_8_320MV, bus_adc=ADC_12BIT, shunt_adc=ADC_12BIT):
         # Configure the CONFIG register based on the datasheet
-        voltage_range = 0x0000 if self.max_voltage <= 16 else 0x0010  # Bit 4: ADCRANGE
+        voltage_range_config = self.RANGE_32V if voltage_range == self.RANGE_32V else self.RANGE_16V
         conv_delay = 0x00  # Default conversion delay (0 ms)
 
-        config = (conv_delay << 6) | voltage_range
+        config = (conv_delay << 6) | voltage_range_config
         self.write_register(self.REG_CONFIG, config)
 
         # Configure the ADC_CONFIG register
         mode = 0x0F  # Continuous bus voltage, shunt voltage, and temperature measurement
-        vbusct = 0x05  # Conversion time of the bus voltage measurement: 1052 µs
-        vshct = 0x05  # Conversion time of the shunt voltage measurement: 1052 µs
-        vtct = 0x05  # Conversion time of the temperature measurement: 1052 µs
+        vbusct = bus_adc
+        vshct = shunt_adc
+        vtct = shunt_adc  # Use the same value for temperature conversion time
         avg = 0x00  # ADC sample averaging count: 1
 
         adc_config = (mode << 12) | (vbusct << 9) | (vshct << 6) | (vtct << 3) | avg
         self.write_register(self.REG_ADC_CONFIG, adc_config)
+
+        self.calibrate()
 
     def calibrate(self):
         # Calculate the calibration value
@@ -167,6 +189,7 @@ class INA238:
 
 # Usage example
 # sensor = INA238(max_voltage=32, shunt_resistance=0.1, max_current=3.2)
+# sensor.configure(voltage_range=INA238.RANGE_32V, gain=INA238.GAIN_1_40MV, bus_adc=INA238.ADC_12BIT
 # print("Bus Voltage: {:.2f} V".format(sensor.voltage()))
 # print("Supply Voltage: {:.2f} V".format(sensor.supply_voltage()))
 # print("Shunt Voltage: {:.2f} mV".format(sensor.shunt_voltage()))
