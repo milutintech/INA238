@@ -7,7 +7,7 @@ The INA238 Python Library provides a user-friendly interface for interacting wit
 If you have any questions, please contact the Repo-Owner.
 
 ## Repo-Owner
-[Name]
+Luca-Timo
 
 ## Getting Started
 
