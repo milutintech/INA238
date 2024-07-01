@@ -28,25 +28,28 @@ class INA238:
     DEFAULT_BUS = 10
 
     # Constants for configuration
-    RANGE_16V = 0x0000
-    RANGE_32V = 0x0010
+    # Voltage range (note: INA238 supports up to 85V, but we'll define these for compatibility)
+    RANGE_16V = 0x0000  # Voltage range 0-16V
+    RANGE_32V = 0x0010  # Voltage range 0-32V (INA238 can handle up to 85V, but needs correct setup)
 
-    GAIN_1_40MV = 0x0000
-    GAIN_2_80MV = 0x0001
-    GAIN_4_160MV = 0x0002
-    GAIN_8_320MV = 0x0003
+    # Gain for the shunt voltage
+    GAIN_1_40MV = 0x0000  # Gain 1, 40mV range
+    GAIN_2_80MV = 0x0001  # Gain 2, 80mV range
+    GAIN_4_160MV = 0x0002  # Gain 4, 160mV range
+    GAIN_8_320MV = 0x0003  # Gain 8, 320mV range
 
-    ADC_9BIT = 0x0000
-    ADC_10BIT = 0x0001
-    ADC_11BIT = 0x0002
-    ADC_12BIT = 0x0003
-    ADC_2SAMP = 0x0009
-    ADC_4SAMP = 0x000A
-    ADC_8SAMP = 0x000B
-    ADC_16SAMP = 0x000C
-    ADC_32SAMP = 0x000D
-    ADC_64SAMP = 0x000E
-    ADC_128SAMP = 0x000F
+    # ADC resolution and sampling
+    ADC_9BIT = 0x0000    # 9-bit resolution
+    ADC_10BIT = 0x0001   # 10-bit resolution
+    ADC_11BIT = 0x0002   # 11-bit resolution
+    ADC_12BIT = 0x0003   # 12-bit resolution
+    ADC_2SAMP = 0x0009   # Averaging 2 samples at 12-bit resolution
+    ADC_4SAMP = 0x000A   # Averaging 4 samples at 12-bit resolution
+    ADC_8SAMP = 0x000B   # Averaging 8 samples at 12-bit resolution
+    ADC_16SAMP = 0x000C  # Averaging 16 samples at 12-bit resolution
+    ADC_32SAMP = 0x000D  # Averaging 32 samples at 12-bit resolution
+    ADC_64SAMP = 0x000E  # Averaging 64 samples at 12-bit resolution
+    ADC_128SAMP = 0x000F # Averaging 128 samples at 12-bit resolution
 
     def __init__(self, bus_num=DEFAULT_BUS, addr=0x40, max_voltage=32, shunt_resistance=0.1, max_current=3.2):
         self.bus = smbus.SMBus(bus_num)
