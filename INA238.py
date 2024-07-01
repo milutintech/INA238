@@ -1,4 +1,5 @@
 import smbus
+import time
 
 class DeviceRangeError(Exception):
     pass
@@ -23,9 +24,15 @@ class INA238:
     REG_MANUFACTURER_ID = 0x3E
     REG_DEVICE_ID = 0x3F
 
-    def __init__(self, bus_num=1, addr=0x40):
+    # Default values
+    DEFAULT_BUS = 10
+
+    def __init__(self, bus_num=DEFAULT_BUS, addr=0x40, max_voltage=32, shunt_resistance=0.1, max_current=3.2):
         self.bus = smbus.SMBus(bus_num)
         self.addr = addr
+        self.max_voltage = max_voltage
+        self.shunt_resistance = shunt_resistance
+        self.max_current = max_current
         self.reset()
         self.configure()
 
@@ -35,11 +42,18 @@ class INA238:
     def read_register(self, reg):
         return self.bus.read_word_data(self.addr, reg)
 
-    def configure(self, voltage_range=0x0000, adc_range=0x0000, bus_adc=0x0780, shunt_adc=0x0078):
+    def configure(self):
+        voltage_range = 0x0000 if self.max_voltage <= 16 else 0x2000
+        adc_range = 0x0000  # Assume a default ADC range, can be set based on actual requirements
+        bus_adc = 0x0780  # Default 12-bit ADC
+        shunt_adc = 0x0078  # Default 12-bit ADC
+
         config = voltage_range | adc_range
         adc_config = bus_adc | shunt_adc
         self.write_register(self.REG_CONFIG, config)
         self.write_register(self.REG_ADC_CONFIG, adc_config)
+
+        self.calibrate(self.shunt_resistance)
 
     def calibrate(self, shunt_resistance):
         calibration_value = int(8192 / (shunt_resistance * 0.00512))
@@ -133,8 +147,7 @@ class INA238:
         self.write_register(self.REG_TEMP_LIMIT, int(limit / 0.125))  # Conversion factor: 125 m°C/LSB
 
 # Usage example
-# sensor = INA238()
-# sensor.configure(voltage_range=INA238.RANGE_32V, adc_range=INA238.ADC_RANGE, bus_adc=INA238.ADC_12BIT, shunt_adc=INA238.ADC_12BIT)
+# sensor = INA238(max_voltage=32, shunt_resistance=0.1, max_current=3.2)
 # print("Bus Voltage: {:.2f} V".format(sensor.voltage()))
 # print("Supply Voltage: {:.2f} V".format(sensor.supply_voltage()))
 # print("Shunt Voltage: {:.2f} mV".format(sensor.shunt_voltage()))
