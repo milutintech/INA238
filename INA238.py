@@ -35,51 +35,69 @@ class INA238:
         self.max_current = max_current
         self.reset()
         self.configure()
+        self.calibrate()
 
     def write_register(self, reg, value):
-        self.bus.write_word_data(self.addr, reg, value)
+        # Swap byte order for correct writing
+        value_swapped = ((value & 0xFF) << 8) | ((value >> 8) & 0xFF)
+        self.bus.write_word_data(self.addr, reg, value_swapped)
 
     def read_register(self, reg):
-        return self.bus.read_word_data(self.addr, reg)
+        value = self.bus.read_word_data(self.addr, reg)
+        # Swap byte order for correct reading
+        return ((value & 0xFF) << 8) | ((value >> 8) & 0xFF)
 
     def configure(self):
-        voltage_range = 0x0000 if self.max_voltage <= 16 else 0x2000
-        adc_range = 0x0000  # Assume a default ADC range, can be set based on actual requirements
-        bus_adc = 0x0780  # Default 12-bit ADC
-        shunt_adc = 0x0078  # Default 12-bit ADC
+        # Configure the CONFIG register based on the datasheet
+        voltage_range = 0x0000 if self.max_voltage <= 16 else 0x0010  # Bit 4: ADCRANGE
+        conv_delay = 0x00  # Default conversion delay (0 ms)
 
-        config = voltage_range | adc_range
-        adc_config = bus_adc | shunt_adc
+        config = (conv_delay << 6) | voltage_range
         self.write_register(self.REG_CONFIG, config)
+
+        # Configure the ADC_CONFIG register
+        mode = 0x0F  # Continuous bus voltage, shunt voltage, and temperature measurement
+        vbusct = 0x05  # Conversion time of the bus voltage measurement: 1052 µs
+        vshct = 0x05  # Conversion time of the shunt voltage measurement: 1052 µs
+        vtct = 0x05  # Conversion time of the temperature measurement: 1052 µs
+        avg = 0x00  # ADC sample averaging count: 1
+
+        adc_config = (mode << 12) | (vbusct << 9) | (vshct << 6) | (vtct << 3) | avg
         self.write_register(self.REG_ADC_CONFIG, adc_config)
 
-        self.calibrate(self.shunt_resistance)
-
-    def calibrate(self, shunt_resistance):
-        calibration_value = int(8192 / (shunt_resistance * 0.00512))
+    def calibrate(self):
+        # Calculate the calibration value
+        current_lsb = self.max_current / 32768
+        calibration_value = int(0.00512 / (current_lsb * self.shunt_resistance))
+        calibration_value &= 0x7FFF  # Ensure bit 15 is reserved (set to 0)
         self.write_register(self.REG_SHUNT_CAL, calibration_value)
 
     def voltage(self):
-        return self.read_register(self.REG_VBUS) * 0.003125
+        raw_vbus = self.read_register(self.REG_VBUS)
+        return raw_vbus * 0.003125  # Conversion factor: 3.125 mV/LSB
 
     def shunt_voltage(self):
         raw_shunt_voltage = self.read_register(self.REG_VSHUNT)
-        return raw_shunt_voltage * 0.00125 if raw_shunt_voltage & 0x8000 else raw_shunt_voltage * 0.005
+        return raw_shunt_voltage * 0.00000125  # Conversion factor: 1.25 µV/LSB
 
     def current(self):
-        current = self.read_register(self.REG_CURRENT) * 0.001
+        raw_current = self.read_register(self.REG_CURRENT)
+        current_lsb = self.max_current / 32768
+        current = raw_current * current_lsb
         if self.current_overflow():
             raise DeviceRangeError("Current overflow")
-        return current
+        return current * 1000  # Convert to mA
 
     def power(self):
-        power = self.read_register(self.REG_POWER) * 0.001
+        raw_power = self.read_register(self.REG_POWER)
+        power_lsb = 25 * (self.max_current / 32768)  # 25 times current LSB
+        power = raw_power * power_lsb
         if self.current_overflow():
             raise DeviceRangeError("Current overflow")
-        return power
+        return power * 1000  # Convert to mW
 
     def supply_voltage(self):
-        return self.voltage() + self.shunt_voltage()
+        return self.voltage() + (self.shunt_voltage() / 1000)  # Convert shunt voltage to V
 
     def current_overflow(self):
         diag_alrt = self.read_register(self.REG_DIAG_ALRT)
@@ -105,6 +123,7 @@ class INA238:
 
     def get_temperature(self):
         raw_temp = self.read_register(self.REG_DIETEMP)
+        raw_temp &= 0xFFF0  # Ensure bits 0-3 are reserved (set to 0)
         return (raw_temp >> 4) * 0.125  # Conversion factor: 125 m°C/LSB
 
     def set_overvoltage_threshold(self, threshold):
