@@ -160,6 +160,12 @@ class INA238:
     def set_power_limit(self, limit):
         self.write_register(self.REG_PWR_LIMIT, int(limit / (256 * 0.001)))  # Conversion factor: 256 * Power LSB
 
+    def get_manufacturer_id(self):
+        return self.read_register(self.REG_MANUFACTURER_ID)
+
+    def get_device_id(self):
+        return self.read_register(self.REG_DEVICE_ID)
+
     def read_config(self):
         return self.read_register(self.REG_CONFIG)
 
