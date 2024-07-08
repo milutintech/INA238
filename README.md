@@ -36,13 +36,19 @@ Follow these steps to get the code up and running on your system:
 Here's an example of how to use the library:
 
 ```python
-from ina238 import INA238
+from ina238 import INA238, Mode, ConversionTime, Samples, ADCRange
 
 # Initialize the sensor
 sensor = INA238(bus_num=1, addr=0x40, max_voltage=32, shunt_resistance=0.1, max_current=3.2)
 
 # Configure the sensor
-sensor.configure(voltage_range=INA238.RANGE_32V, gain=INA238.GAIN_1_40MV, bus_adc=INA238.ADC_12BIT, shunt_adc=INA238.ADC_12BIT)
+sensor.configure(
+    voltage_range=ADCRange.HIGH,
+    mode=Mode.CONTINUOUS_VBUS_VSHUNT_DIETEMP,
+    bus_adc=ConversionTime.T_1052_US,
+    shunt_adc=ConversionTime.T_1052_US,
+    avg=Samples.AVG_128
+)
 
 # Read values
 print("Bus Voltage: {:.2f} V".format(sensor.voltage()))
@@ -69,12 +75,19 @@ sensor = INA238(bus_num=1, addr=0x40, max_voltage=32, shunt_resistance=0.1, max_
 #### Configuration
 
 ```python
-sensor.configure(voltage_range=INA238.RANGE_32V, gain=INA238.GAIN_1_40MV, bus_adc=INA238.ADC_12BIT, shunt_adc=INA238.ADC_12BIT)
+sensor.configure(
+    voltage_range=ADCRange.HIGH,
+    mode=Mode.CONTINUOUS_VBUS_VSHUNT_DIETEMP,
+    bus_adc=ConversionTime.T_1052_US,
+    shunt_adc=ConversionTime.T_1052_US,
+    avg=Samples.AVG_128
+)
 ```
-- `voltage_range`: The voltage range setting (16V or 32V).
-- `gain`: The gain setting for the shunt voltage.
-- `bus_adc`: The ADC resolution/averaging for the bus voltage.
-- `shunt_adc`: The ADC resolution/averaging for the shunt voltage.
+- `voltage_range`: The ADC range setting (`ADCRange.HIGH` or `ADCRange.LOW`).
+- `mode`: The operating mode (`Mode.CONTINUOUS_VBUS_VSHUNT_DIETEMP` or other `Mode` values).
+- `bus_adc`: The ADC conversion time for the bus voltage (`ConversionTime.T_1052_US` or other `ConversionTime` values).
+- `shunt_adc`: The ADC conversion time for the shunt voltage (`ConversionTime.T_1052_US` or other `ConversionTime` values).
+- `avg`: The ADC sample averaging count (`Samples.AVG_128` or other `Samples` values).
 
 #### Reading Values
 
@@ -104,6 +117,15 @@ try:
     power = sensor.power()
 except DeviceRangeError as e:
     print(f"Error: {e}")
+```
+
+### Device Information
+
+To get the device ID:
+
+```python
+device_id = sensor.get_device_id()
+print(f"Device ID: {device_id}")
 ```
 
 ## Build and Test
@@ -158,6 +180,3 @@ For more information on creating good readme files, refer to the following [guid
 ## To Do's:
 - [ ] Add more configuration options.
 - [ ] Improve error handling and documentation.
-```
-
-This documentation provides a comprehensive guide on how to use the INA238 Python library, including installation, configuration, usage examples, and contribution guidelines.
